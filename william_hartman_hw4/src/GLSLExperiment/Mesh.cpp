@@ -208,17 +208,40 @@ void Mesh::drawMesh(int program, Spotlight* light) {
 	glDisable(GL_DEPTH_TEST);
 }
 void Mesh::drawShadows(int program, Spotlight* light, vec4 planeNormal, mat4 modelView) {
+	float dist = 1;
+	float rotX = 90;
+	float rotY = -45;
+	float rotZ = 0;
+
 	//Shadow matrix
-	vec3 offsetPos = vec3(light->getPosition().x, light->getPosition().y + 1, light->getPosition().z);
+	vec3 offsetPos = vec3(light->getPosition().x, light->getPosition().y + dist, light->getPosition().z);
 
 	mat4 shadowMat = Angel::identity();
 	shadowMat[3][1] = -1.0f / offsetPos.y;
 	shadowMat[3][3] = 0;
 
-	mat4 rot = Angel::RotateY(45) * Angel::RotateZ(90);
-	mat4 negrot = Angel::RotateY(-45) * Angel::RotateZ(-90);
+	mat4 rotate = Angel::RotateX(rotX) * Angel::RotateY(rotY) * Angel::RotateZ(rotZ);
+	mat4 rotateBack = Angel::RotateX(-rotX) * Angel::RotateY(-rotY) * Angel::RotateZ(-rotZ);
+	mat4 shadowProjMat = Angel::RotateY(rotY) * Angel::RotateZ(-rotY) * rotate * Angel::Translate(light->getPosition()) * shadowMat *  Angel::Translate(-light->getPosition()) * rotateBack * modelView;
 
-	mat4 shadowProjMat = Angel::RotateY(90) * rot * Angel::Translate(light->getPosition()) * shadowMat * Angel::RotateY(45) * Angel::Translate(-light->getPosition()) * negrot * modelView;
+
+
+	//mat4 rot = Angel::RotateY(45) * Angel::RotateZ(90);
+	//mat4 negrot = Angel::RotateY(-45) * Angel::RotateZ(-90);
+	//mat4 shadowProjMat = Angel::RotateY(90) * rot * Angel::Translate(light->getPosition()) * shadowMat * Angel::RotateY(45) * Angel::Translate(-light->getPosition()) * negrot * modelView * Angel::RotateY(180);
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 	//mat4 shadowProjMat = Angel::Translate(0, -0.5, 0) * Angel::Translate(light->getPosition()) * shadowMat * Angel::Translate(-light->getPosition()) * modelView *  Angel::Translate(0, 0.5, 0);
 	//mat4 shadowProjMat = Angel::RotateY(-45) * Angel::RotateX(-90) * Angel::Translate(light->getPosition()) * shadowMat * Angel::Translate(-light->getPosition()) * Angel::RotateY(45) * Angel::RotateX(90) * modelView;
 
