@@ -39,7 +39,6 @@ void Mesh::addVertex(float x, float y, float z) {
 	addVertex(x, y, z, 0, 0, 0);
 }
 
-
 void Mesh::addVertex(float x, float y, float z, float u, float v, float w) {
 	if (numVerts >= vertsListSize) {
 		printf("Failed to add point (%f, %f, %f) - verts list is full!\n", x, y, z);
@@ -67,6 +66,7 @@ void Mesh::addPoly(int vertIndex1, int vertIndex2, int vertIndex3) {
 	polys[numPolys] = toAdd;
 	numPolys++;
 }
+
 void Mesh::normalize() {
 	//Center and scale the mesh
 	float meshWidth = getWidth();
@@ -86,6 +86,7 @@ void Mesh::normalize() {
 		verts[i]->point->z = temp.z;
 	}
 }
+
 void Mesh::buildNormals() {
 	for (int i = 0; i < numVerts; i++) {
 		vec4 pointNormal = vec4(0, 0, 0, 1);
@@ -100,9 +101,32 @@ void Mesh::buildNormals() {
 		verts[i]->normal = new vec4(normalized);
 	}
 }
+
+void Mesh::prepForDrawing() {
+	buildNormals();
+
+	int bufferSize = 3 * 3 * numPolys;
+	meshGLPoints = new vec4[bufferSize];
+	int pointsIndex = 0;
+	for (int i = 0; i < numPolys; i++) {
+		meshGLPoints[pointsIndex] = *(polys[i]->p1->point);  pointsIndex++;
+		meshGLPoints[pointsIndex] = *(polys[i]->p1->normal); pointsIndex++;
+		meshGLPoints[pointsIndex] = *(polys[i]->p1->texCoord); pointsIndex++;
+
+		meshGLPoints[pointsIndex] = *(polys[i]->p2->point);  pointsIndex++;
+		meshGLPoints[pointsIndex] = *(polys[i]->p2->normal); pointsIndex++;
+		meshGLPoints[pointsIndex] = *(polys[i]->p2->texCoord); pointsIndex++;
+
+		meshGLPoints[pointsIndex] = *(polys[i]->p3->point);  pointsIndex++;
+		meshGLPoints[pointsIndex] = *(polys[i]->p3->normal); pointsIndex++;
+		meshGLPoints[pointsIndex] = *(polys[i]->p3->texCoord); pointsIndex++;
+	}
+}
+
 void Mesh::setColor(vec4 newColor) {
 	color = newColor;
 }
+
 void Mesh::setTexture(const char* path) {
 	bmpread_t bitmap;
 	if (!bmpread(path, 0, &bitmap)) {
@@ -122,7 +146,8 @@ void Mesh::setTexture(const char* path) {
 	bmpread_free(&bitmap);
 	hasTexture = true;
 }
-void Mesh::drawWithTexture(bool shouldUseTexture) {
+
+void Mesh::shouldDrawWithTexture(bool shouldUseTexture) {
 	hasTexture = shouldUseTexture;
 }
 
@@ -156,27 +181,9 @@ vec3 Mesh::getCenterPosition(mat4 CTM) {
 
 //Methods for drawing
 void Mesh::drawMesh(int program, Spotlight* light) {
-	//Build a buffer of all points in the model
-	int bufferSize = 3 * 3 * numPolys;
-	vec4* points = new vec4[bufferSize];
-	int pointsIndex = 0;
-	for (int i = 0; i < numPolys; i++) {
-		points[pointsIndex] = *(polys[i]->p1->point);  pointsIndex++;
-		points[pointsIndex] = *(polys[i]->p1->normal); pointsIndex++;
-		points[pointsIndex] = *(polys[i]->p1->texCoord); pointsIndex++;
-
-		points[pointsIndex] = *(polys[i]->p2->point);  pointsIndex++;
-		points[pointsIndex] = *(polys[i]->p2->normal); pointsIndex++;
-		points[pointsIndex] = *(polys[i]->p2->texCoord); pointsIndex++;
-
-		points[pointsIndex] = *(polys[i]->p3->point);  pointsIndex++;
-		points[pointsIndex] = *(polys[i]->p3->normal); pointsIndex++;
-		points[pointsIndex] = *(polys[i]->p3->texCoord); pointsIndex++;
-	}
-
 	//Send the data to GPU
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vec4) * bufferSize, points, GL_STATIC_DRAW);
-	delete points;
+	int bufferSize = 3 * 3 * numPolys;
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vec4) * bufferSize, meshGLPoints, GL_STATIC_DRAW);
 
 	//Clear global color
 	GLuint vColor = glGetUniformLocationARB(program, "overrideColor");
@@ -207,69 +214,21 @@ void Mesh::drawMesh(int program, Spotlight* light) {
 	glDrawArrays(GL_TRIANGLES, 0, 3 * numPolys);
 	glDisable(GL_DEPTH_TEST);
 }
-void Mesh::drawShadows(int program, Spotlight* light, vec4 planeNormal, mat4 modelView) {
-	float dist = 1;
-	float rotX = 90;
-	float rotY = -45;
-	float rotZ = 0;
-
+void Mesh::drawShadows(int program, Spotlight* light, float dist, vec3 planeRotation, mat4 modelView) {
 	//Shadow matrix
-	vec3 offsetPos = vec3(light->getPosition().x, light->getPosition().y + dist, light->getPosition().z);
+	vec4 offsetPos = vec4(light->getPosition().x, 
+						  light->getPosition().y + dist - 0.0001, //Move the shadow slightly closer to avoid z-fighting
+						  light->getPosition().z,
+						  1);
 
 	mat4 shadowMat = Angel::identity();
 	shadowMat[3][1] = -1.0f / offsetPos.y;
 	shadowMat[3][3] = 0;
 
-	mat4 rotate = Angel::RotateX(rotX) * Angel::RotateY(rotY) * Angel::RotateZ(rotZ);
-	mat4 rotateBack = Angel::RotateX(-rotX) * Angel::RotateY(-rotY) * Angel::RotateZ(-rotZ);
-	mat4 shadowProjMat = Angel::RotateY(rotY) * Angel::RotateZ(-rotY) * rotate * Angel::Translate(light->getPosition()) * shadowMat *  Angel::Translate(-light->getPosition()) * rotateBack * modelView;
-
-
-
-	//mat4 rot = Angel::RotateY(45) * Angel::RotateZ(90);
-	//mat4 negrot = Angel::RotateY(-45) * Angel::RotateZ(-90);
-	//mat4 shadowProjMat = Angel::RotateY(90) * rot * Angel::Translate(light->getPosition()) * shadowMat * Angel::RotateY(45) * Angel::Translate(-light->getPosition()) * negrot * modelView * Angel::RotateY(180);
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	//mat4 shadowProjMat = Angel::Translate(0, -0.5, 0) * Angel::Translate(light->getPosition()) * shadowMat * Angel::Translate(-light->getPosition()) * modelView *  Angel::Translate(0, 0.5, 0);
-	//mat4 shadowProjMat = Angel::RotateY(-45) * Angel::RotateX(-90) * Angel::Translate(light->getPosition()) * shadowMat * Angel::Translate(-light->getPosition()) * Angel::RotateY(45) * Angel::RotateX(90) * modelView;
-
-	////Shadow Matrix adapted from: https://www.opengl.org/archives/resources/features/StencilTalk/tsld021.htm
-	//mat4 shadowMat = Angel::identity();
-	//float planeDotLight = Angel::dot(planeNormal, light->getPosition());
-
-	//shadowMat[0][0] = planeDotLight - light->getPosition().x * planeNormal.x;
-	//shadowMat[0][1] =               - light->getPosition().x * planeNormal.y;
-	//shadowMat[0][2] =               - light->getPosition().x * planeNormal.z;
-	//shadowMat[0][3] =               - light->getPosition().x * planeNormal.w;
-
-	//shadowMat[1][0] =               - light->getPosition().y * planeNormal.x;
-	//shadowMat[1][1] = planeDotLight - light->getPosition().y * planeNormal.y;
-	//shadowMat[1][2] =               - light->getPosition().y * planeNormal.z;
-	//shadowMat[1][3] =               - light->getPosition().y * planeNormal.w;
-
-	//shadowMat[2][0] =               - light->getPosition().z * planeNormal.x;
-	//shadowMat[2][1] =               - light->getPosition().z * planeNormal.y;
-	//shadowMat[2][2] = planeDotLight - light->getPosition().z * planeNormal.z;
-	//shadowMat[2][3] =               - light->getPosition().z * planeNormal.w;
-
-	//shadowMat[3][0] =               - light->getPosition().w * planeNormal.x;
-	//shadowMat[3][1] =               - light->getPosition().w * planeNormal.y;
-	//shadowMat[3][2] =               - light->getPosition().w * planeNormal.z;
-	//shadowMat[3][3] = planeDotLight - light->getPosition().w * planeNormal.w;
-
-	//mat4 shadowProjMat = shadowMat * modelView;
+	mat4 rotate = Angel::RotateX(-planeRotation.x) * Angel::RotateY(-planeRotation.y) * Angel::RotateZ(-planeRotation.z);
+	mat4 rotateBack = Angel::RotateX(planeRotation.x) * Angel::RotateY(planeRotation.y) * Angel::RotateZ(planeRotation.z);
+	mat4 rotateToPlane = Angel::RotateY(planeRotation.y) * Angel::RotateZ(-planeRotation.y);
+	mat4 shadowProjMat = rotateToPlane * rotateBack * Angel::Translate(light->getPosition()) * shadowMat * Angel::Translate(-light->getPosition()) * rotate * modelView;
 
 	float mm[16];
 	mm[0] =  shadowProjMat[0][0]; mm[4] =  shadowProjMat[0][1];
@@ -283,37 +242,27 @@ void Mesh::drawShadows(int program, Spotlight* light, vec4 planeNormal, mat4 mod
 	GLuint ctmLocation = glGetUniformLocationARB(program, "modelMatrix");
 	glUniformMatrix4fv(ctmLocation, 1, GL_FALSE, mm);
 
-	//Build a buffer of all points in the model
-	int bufferSize = 3 * 3 * numPolys;
-	vec4* points = new vec4[bufferSize];
-	int pointsIndex = 0;
-	for (int i = 0; i < numPolys; i++) {
-		points[pointsIndex] = *(polys[i]->p1->point);  pointsIndex++;
-		points[pointsIndex] = *(polys[i]->p1->normal); pointsIndex++;
-		points[pointsIndex] = *(polys[i]->p1->texCoord); pointsIndex++;
-
-		points[pointsIndex] = *(polys[i]->p2->point);  pointsIndex++;
-		points[pointsIndex] = *(polys[i]->p2->normal); pointsIndex++;
-		points[pointsIndex] = *(polys[i]->p2->texCoord); pointsIndex++;
-
-		points[pointsIndex] = *(polys[i]->p3->point);  pointsIndex++;
-		points[pointsIndex] = *(polys[i]->p3->normal); pointsIndex++;
-		points[pointsIndex] = *(polys[i]->p3->texCoord); pointsIndex++;
-	}
-
 	//Send the data to GPU
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vec4) * bufferSize, points, GL_STATIC_DRAW);
-	delete points;
+	int bufferSize = 3 * 3 * numPolys;
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vec4) * bufferSize, meshGLPoints, GL_STATIC_DRAW);
 
 	//Clear global color
 	GLuint vColor = glGetUniformLocationARB(program, "overrideColor");
-	glUniform4f(vColor, 1, 0, 0, 1);
+	glUniform4f(vColor, 0, 0, 0, 0.5f);
 
 	//Draw the shadow polygons
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+	glStencilFunc(GL_EQUAL, 111, ~0);
+	glStencilOp(GL_KEEP, GL_KEEP, GL_ZERO);
+
+	glEnable(GL_STENCIL_TEST);
 	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glDrawArrays(GL_TRIANGLES, 0, 3 * numPolys);
 	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_STENCIL_TEST);
 
 	//Clean 
 	mm[0] =  modelView[0][0]; mm[4] =  modelView[0][1];
@@ -459,7 +408,7 @@ Mesh* loadMeshFromPLY(char* filename) {
 	}
 
 	mesh->normalize();
-	mesh->buildNormals();
+	mesh->prepForDrawing();
 
 	return mesh;
 }

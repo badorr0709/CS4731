@@ -36,7 +36,8 @@ public:
 	void normalize(); //Move to be centered on the origin, make the mesh's largest dimension 1
 	void setColor(vec4 newColor);
 	void setTexture(const char* path);
-	void drawWithTexture(bool shouldUseTexture);
+	void prepForDrawing();
+	void shouldDrawWithTexture(bool shouldUseTexture);
 
 	//Methods for getting information about meshes
 	float getWidth(mat4 CTM = Angel::identity());
@@ -46,7 +47,7 @@ public:
 
 	//Methods for drawing
 	void drawMesh(int program, Spotlight* light);
-	void drawShadows(int program, Spotlight* light, vec4 planeNormal, mat4 modelView);
+	void drawShadows(int program, Spotlight* light, float dist, vec3 planeRotation, mat4 modelView);
 
 	//Methods for transforming meshes
 	void moveTo(float x, float y, float z);
@@ -77,6 +78,9 @@ private:
 	//Texture stuff
 	GLuint texture;
 	bool hasTexture;
+
+	//Drawing stuff
+	vec4* meshGLPoints;
 
 	//Convenience methods for mins and maxes
 	vec4 calcNormal(Face* face);

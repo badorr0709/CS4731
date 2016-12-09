@@ -37,6 +37,7 @@ Mesh* child4;
 Mesh* child5;
 Spotlight* light;
 
+bool shouldDrawShadows = true;
 bool areWallsTextured = true;
 float currentRotationAmount;
 
@@ -95,7 +96,7 @@ void setUpOpenGLBuffers() {
 //Draw the current model with the appropriate model and view matrices
 void display() {
 	//Clear the window and depth buffer
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 	//Build the view matrix
 	Angel::mat4 perspectiveMat = Angel::Perspective((GLfloat)45.0, (GLfloat)width/(GLfloat)height, (GLfloat)0.1, (GLfloat) 100.0);
@@ -114,6 +115,10 @@ void display() {
 	glUniformMatrix4fv(viewMatrix, 1, GL_FALSE, viewMatrixf);
 
 	//Draw the floors/walls
+	glEnable(GL_STENCIL_TEST);
+	glStencilFunc(GL_ALWAYS, 111, ~0);
+	glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+
 	ctmStack.pushMatrix(floorMesh->getModelMatrix());
 	ctmStack.popMatrix();
 	floorMesh->drawMesh(program, light);
@@ -128,6 +133,7 @@ void display() {
 	ctmStack.popMatrix();
 	wall2->drawMesh(program, light);
 	ctmStack.pushMatrix(Angel::identity());
+	glDisable(GL_STENCIL_TEST);
 
 	//Draw the sculpture heirarchy
 	ctmStack.pushMatrix(root->getModelMatrix());
@@ -175,10 +181,11 @@ void display() {
 }
 
 void drawShadows(Mesh* m) {
-	//m->drawShadows(program, new Spotlight(vec3(0, 0, 10), vec3(0, -1, 0), 360), vec4( 0,  0,  1,  0), ctmStack.peekMatrix());
-	m->drawShadows(program, light, vec4( 0,  1,  0,  0.5), ctmStack.peekMatrix());
-	//m->drawShadows(program, light, vec4(-1,  0, -1,  1), vec3( ROOT_TWO_OVER_TWO, 0,  ROOT_TWO_OVER_TWO), ctmStack.peekMatrix());
-	//m->drawShadows(program, light, vec4( 1,  0,  1,  1), vec3(-ROOT_TWO_OVER_TWO, 0, -ROOT_TWO_OVER_TWO), ctmStack.peekMatrix());
+	if (shouldDrawShadows) {
+		m->drawShadows(program, light, 0.5f, vec3(0, 0, 0), ctmStack.peekMatrix()); //Floor
+		m->drawShadows(program, light, 1.0f, vec3(90, -45, 0), ctmStack.peekMatrix()); //Wall
+		m->drawShadows(program, light, 1.0f, vec3(90, 45, 0), ctmStack.peekMatrix()); //Wall
+	}
 }
 
 //Mesh 1 should be the child, mesh 2 should be the parent
@@ -245,12 +252,16 @@ void keyboard(unsigned char key, int x, int y)
 	case 'P':
 		light->setCutoff(light->getCutoff() - CUTOFF_CHANGE_AMOUNT);
 		break;
+	case 'a':
+	case 'A':
+		shouldDrawShadows = !shouldDrawShadows; 
+		break;
 	case 'b':
 	case 'B':
 		areWallsTextured = !areWallsTextured;
-		floorMesh->drawWithTexture(areWallsTextured);
-		wall1->drawWithTexture(areWallsTextured);
-		wall2->drawWithTexture(areWallsTextured);
+		floorMesh->shouldDrawWithTexture(areWallsTextured);
+		wall1->shouldDrawWithTexture(areWallsTextured);
+		wall2->shouldDrawWithTexture(areWallsTextured);
 	}
 }
 
@@ -264,7 +275,7 @@ Mesh* makeWall() {
 	m->addPoly(0, 2, 1);
 	m->addPoly(0, 3, 2);
 
-	m->buildNormals();
+	m->prepForDrawing();
 
 	return m;
 }
