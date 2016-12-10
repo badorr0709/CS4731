@@ -4,7 +4,7 @@
 #include "Spotlight.h"
 
 Spotlight::Spotlight(vec3 pos, vec3 dir, float cut) {
-	position = vec4(pos, 0);
+	position = vec4(pos, 1);
 	direction = dir;
 	cutoff = cut;
 }

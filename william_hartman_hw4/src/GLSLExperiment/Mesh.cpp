@@ -288,9 +288,9 @@ void Mesh::drawMesh(int program, Spotlight* light) {
 	glUniform1i(reflect, GL_FALSE);
 	glUniform1i(refract, GL_FALSE);
 }
-void Mesh::drawShadows(int program, Spotlight* light, float dist, vec3 planeRotation, mat4 modelView) {
+void Mesh::drawShadows(int program, Spotlight* light, float dist, vec3 correction, vec3 planeRotation, mat4 modelView) {
 	//Shadow matrix
-	vec4 offsetPos = vec4(light->getPosition().x, 
+	vec4 offsetPos = vec4(light->getPosition().x,
 						  light->getPosition().y + dist - 0.0001, //Move the shadow slightly closer to avoid z-fighting
 						  light->getPosition().z,
 						  1);
@@ -301,7 +301,7 @@ void Mesh::drawShadows(int program, Spotlight* light, float dist, vec3 planeRota
 
 	mat4 rotate = Angel::RotateX(-planeRotation.x) * Angel::RotateY(-planeRotation.y) * Angel::RotateZ(-planeRotation.z);
 	mat4 rotateBack = Angel::RotateX(planeRotation.x) * Angel::RotateY(planeRotation.y) * Angel::RotateZ(planeRotation.z);
-	mat4 rotateToPlane = Angel::RotateY(planeRotation.y) * Angel::RotateZ(-planeRotation.y);
+	mat4 rotateToPlane = Angel::Translate(correction) *Angel::RotateY(planeRotation.y) * Angel::RotateZ(-planeRotation.y);
 	mat4 shadowProjMat = rotateToPlane * rotateBack * Angel::Translate(light->getPosition()) * shadowMat * Angel::Translate(-light->getPosition()) * rotate * modelView;
 
 	float mm[16];

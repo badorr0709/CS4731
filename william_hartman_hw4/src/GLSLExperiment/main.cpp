@@ -117,7 +117,7 @@ void display() {
 	glUniformMatrix4fv(viewMatrix, 1, GL_FALSE, viewMatrixf);
 
 	//Draw the floors/walls
-	glEnable(GL_STENCIL_TEST);
+	glEnable(GL_STENCIL_TEST); //Stencil test prevents semi-tranparent shadows from drawing twice
 	glStencilFunc(GL_ALWAYS, 111, ~0);
 	glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
@@ -135,6 +135,7 @@ void display() {
 	ctmStack.popMatrix();
 	wall2->drawMesh(program, light);
 	ctmStack.pushMatrix(Angel::identity());
+
 	glDisable(GL_STENCIL_TEST);
 
 	//Draw the sculpture heirarchy
@@ -153,14 +154,16 @@ void display() {
 	drawLine(child1, child5);
 
 	ctmStack.pushMatrix(child4->getModelMatrix());
-	ctmStack.popMatrix();
+	ctmStack.peekMatrix();
 	child4->drawMesh(program, light);
 	drawShadows(child4);
+	ctmStack.popMatrix();
 
 	ctmStack.pushMatrix(child5->getModelMatrix());
-	ctmStack.popMatrix();
+	ctmStack.peekMatrix();
 	child5->drawMesh(program, light);
 	drawShadows(child5);
+	ctmStack.popMatrix();
 	ctmStack.popMatrix();
 
 	ctmStack.pushMatrix(child2->getModelMatrix());
@@ -184,9 +187,8 @@ void display() {
 
 void drawShadows(Mesh* m) {
 	if (shouldDrawShadows) {
-		m->drawShadows(program, light, 0.5f, vec3(0, 0, 0), ctmStack.peekMatrix()); //Floor
-		m->drawShadows(program, light, 1.0f, vec3(90, -45, 0), ctmStack.peekMatrix()); //Wall
-		m->drawShadows(program, light, 1.0f, vec3(90, 45, 0), ctmStack.peekMatrix()); //Wall
+		m->drawShadows(program, light, 0.5f, vec3( 0,    0, 0), vec3(0, 0, 0), ctmStack.peekMatrix()); //Floor
+		m->drawShadows(program, light, 1.0f, vec3( 0, -0.5, 0), vec3(90, 45, 0), ctmStack.peekMatrix()); //Wall
 	}
 }
 
