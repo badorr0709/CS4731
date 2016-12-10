@@ -1,4 +1,4 @@
-#version 150
+#version 330 core
 
 flat in vec4 flatColor;
 
@@ -6,13 +6,18 @@ in vec3 pos;
 in vec3 fL;
 in vec3 fE;
 in vec3 fN;
-in  vec2 texCoord;
-
+in vec2 texCoord;
+in vec3 reflectVec;
+in vec3 refractVec;
 out vec4 fColor;
 
 uniform bool useTexture;
 uniform vec4 overrideColor;
-uniform sampler2D texture;
+uniform sampler2D tex;
+
+uniform bool shouldReflect;
+uniform bool shouldRefract;
+uniform samplerCube envMap;
 
 uniform vec4 ambient, diffuse, specular;
 uniform vec4 lightPos;
@@ -26,7 +31,7 @@ void main()
 {
 	vec4 diffuseToUse;
 	if(useTexture) {
-		diffuseToUse = texture2D(texture, texCoord);
+		diffuseToUse = texture(tex, texCoord);
 	} else {
 		diffuseToUse = diffuse;
 	}
@@ -38,7 +43,7 @@ void main()
 
 	//Find intensity
 	float lightPosAngle = acos(dot(L, normalize(lightDir.xyz)));
-	float intensity = 0;
+	float intensity = 0.0;
 	if(lightPosAngle < lightCutoff) {
 		intensity = pow(cos(lightPosAngle), lightFalloff) * 0.5;
 	}
@@ -47,7 +52,7 @@ void main()
 	vec4 sAmbient = ambient * intensity;
 
 	float cosTheta = max(dot(L, N), 0.0);
-	vec4 sDiffuse = cosTheta * diffuseToUse * intensity * 2;
+	vec4 sDiffuse = cosTheta * diffuseToUse * intensity * 2.0;
 
 	float cosPhi = pow(max(dot(N, H), 0.0), shininess);
 	vec4 sSpecular = cosPhi * specular * intensity;
@@ -59,7 +64,16 @@ void main()
 	fColor = sAmbient + sDiffuse + sSpecular;
 	fColor.a = 1.0;
 
+	//Override color if set
 	if(length(overrideColor) > 0.0) {
 		fColor = overrideColor;
+	}
+
+	//Override with reflect/refract if set
+	if(shouldReflect) {
+		fColor =  texture(envMap, reflectVec);
+	}
+	if(shouldRefract) {
+		fColor = mix(texture(envMap, refractVec), vec4(1.0, 1.0, 1.0, 1.0), 0.3);
 	}
 }

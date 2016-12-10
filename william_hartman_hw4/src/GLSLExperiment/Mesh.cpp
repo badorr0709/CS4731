@@ -22,6 +22,8 @@ Mesh::Mesh(int polyCount, int vertCount) {
 	verts = new point4*[vertCount];
 
 	hasTexture = false;
+	shouldReflect = false;
+	shouldRefract = false;
 }
 Mesh::~Mesh() {
 	for (int i = 0; i < numPolys; i++) { delete polys[i]; }
@@ -67,6 +69,21 @@ void Mesh::addPoly(int vertIndex1, int vertIndex2, int vertIndex3) {
 	numPolys++;
 }
 
+void Mesh::buildNormals() {
+	for (int i = 0; i < numVerts; i++) {
+		vec4 pointNormal = vec4(0, 0, 0, 1);
+		for (int j = 0; j < numPolys; j++) {
+			if (polys[j]->p1 == verts[i] || polys[j]->p2 == verts[i] || polys[j]->p3 == verts[i]) {
+				pointNormal += calcNormal(polys[j]);
+			}
+		}
+
+		vec4 normalized = Angel::normalize(pointNormal);
+		normalized.w = 0;
+		verts[i]->normal = new vec4(normalized);
+	}
+}
+
 void Mesh::normalize() {
 	//Center and scale the mesh
 	float meshWidth = getWidth();
@@ -84,21 +101,6 @@ void Mesh::normalize() {
 		verts[i]->point->x = temp.x;
 		verts[i]->point->y = temp.y;
 		verts[i]->point->z = temp.z;
-	}
-}
-
-void Mesh::buildNormals() {
-	for (int i = 0; i < numVerts; i++) {
-		vec4 pointNormal = vec4(0, 0, 0, 1);
-		for (int j = 0; j < numPolys; j++) {
-			if (polys[j]->p1 == verts[i] || polys[j]->p2 == verts[i] || polys[j]->p3 == verts[i]) {
-				pointNormal += calcNormal(polys[j]);
-			}
-		}
-
-		vec4 normalized = Angel::normalize(pointNormal);
-		normalized.w = 0;
-		verts[i]->normal = new vec4(normalized);
 	}
 }
 
@@ -151,6 +153,60 @@ void Mesh::shouldDrawWithTexture(bool shouldUseTexture) {
 	hasTexture = shouldUseTexture;
 }
 
+void Mesh::setEnvironmentMap(const char* posX, const char* posY, const char* posZ, const char* negX, const char* negY, const char* negZ) {
+	bmpread_t bitmapPosX;
+	bmpread_t bitmapPosY;
+	bmpread_t bitmapPosZ;
+	bmpread_t bitmapNegX;
+	bmpread_t bitmapNegY;
+	bmpread_t bitmapNegZ;
+
+	bool success = true;
+	success = success && bmpread(posX, 0, &bitmapPosX);
+	success = success && bmpread(posY, 0, &bitmapPosY);
+	success = success && bmpread(posZ, 0, &bitmapPosZ);
+	success = success && bmpread(negX, 0, &bitmapNegX);
+	success = success && bmpread(negY, 0, &bitmapNegY);
+	success = success && bmpread(negZ, 0, &bitmapNegZ);
+
+	if (!success) {
+		fprintf(stderr, "%s:error loading bitmap file\n");
+		exit(1);
+	}
+
+	glActiveTexture(GL_TEXTURE1);
+	glGenTextures(1, &cubeMap);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMap);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_RGB, bitmapPosX.width, bitmapPosX.height, 0, GL_RGB, GL_UNSIGNED_BYTE, bitmapPosX.rgb_data);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, 0, GL_RGB, bitmapPosY.width, bitmapPosY.height, 0, GL_RGB, GL_UNSIGNED_BYTE, bitmapPosY.rgb_data);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 0, GL_RGB, bitmapPosZ.width, bitmapPosZ.height, 0, GL_RGB, GL_UNSIGNED_BYTE, bitmapPosZ.rgb_data);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, 0, GL_RGB, bitmapNegX.width, bitmapNegX.height, 0, GL_RGB, GL_UNSIGNED_BYTE, bitmapNegX.rgb_data);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, GL_RGB, bitmapNegY.width, bitmapNegY.height, 0, GL_RGB, GL_UNSIGNED_BYTE, bitmapNegY.rgb_data);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, GL_RGB, bitmapNegZ.width, bitmapNegZ.height, 0, GL_RGB, GL_UNSIGNED_BYTE, bitmapNegZ.rgb_data);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+	bmpread_free(&bitmapPosX);
+	bmpread_free(&bitmapPosY);
+	bmpread_free(&bitmapPosZ);
+	bmpread_free(&bitmapNegX);
+	bmpread_free(&bitmapNegY);
+	bmpread_free(&bitmapNegZ);
+	hasReflectionMap = true;
+}
+
+void Mesh::setShouldRefract(bool should) {
+	shouldRefract = should;
+	shouldReflect = false;
+}
+
+void Mesh::setShouldReflect(bool should) {
+	shouldReflect = should;
+	shouldRefract = false;
+}
 
 
 //Methods for getting information about meshes
@@ -201,18 +257,36 @@ void Mesh::drawMesh(int program, Spotlight* light) {
 	glUniform1f(lightCutoff, light->getCutoff() * Angel::DegreesToRadians);
 
 	// Set up textures
+	if (hasTexture && !(shouldRefract || shouldReflect)) {
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, texture);
+		GLuint texture = glGetUniformLocation(program, "texture");
+		glUniform1i(texture, 0);
+	}
 	GLuint useTexture = glGetUniformLocationARB(program, "useTexture");
 	glUniform1i(useTexture, hasTexture ? GL_TRUE : GL_FALSE);
 
-	glBindTexture(GL_TEXTURE_2D, texture);
-	GLuint texture = glGetUniformLocation(program, "texture");
-	glUniform1i(texture, 0);
+	//Set up environment map
+	if (hasReflectionMap && (shouldRefract || shouldReflect)) {
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMap);
+		GLuint envMap = glGetUniformLocation(program, "envMap");
+		glUniform1i(envMap, 1);
+	}
+	GLuint reflect = glGetUniformLocation(program, "shouldReflect");
+	glUniform1i(reflect, shouldReflect ? GL_TRUE : GL_FALSE);
+	GLuint refract = glGetUniformLocation(program, "shouldRefract");
+	glUniform1i(refract, shouldRefract ? GL_TRUE : GL_FALSE);
 
 	//Draw the PLY model
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	glEnable(GL_DEPTH_TEST);
 	glDrawArrays(GL_TRIANGLES, 0, 3 * numPolys);
 	glDisable(GL_DEPTH_TEST);
+	
+	glUniform1i(useTexture, GL_FALSE);
+	glUniform1i(reflect, GL_FALSE);
+	glUniform1i(refract, GL_FALSE);
 }
 void Mesh::drawShadows(int program, Spotlight* light, float dist, vec3 planeRotation, mat4 modelView) {
 	//Shadow matrix

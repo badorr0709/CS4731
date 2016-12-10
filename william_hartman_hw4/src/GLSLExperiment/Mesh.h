@@ -34,10 +34,13 @@ public:
 	void addPoly(int vertIndex1, int vertIndex2, int vertIndex3);
 	void Mesh::buildNormals();
 	void normalize(); //Move to be centered on the origin, make the mesh's largest dimension 1
+	void prepForDrawing();
 	void setColor(vec4 newColor);
 	void setTexture(const char* path);
-	void prepForDrawing();
 	void shouldDrawWithTexture(bool shouldUseTexture);
+	void setEnvironmentMap(const char* posX, const char* posY, const char* posZ, const char* negX, const char* negY, const char* negZ);
+	void setShouldRefract(bool should);
+	void setShouldReflect(bool should);
 
 	//Methods for getting information about meshes
 	float getWidth(mat4 CTM = Angel::identity());
@@ -78,6 +81,11 @@ private:
 	//Texture stuff
 	GLuint texture;
 	bool hasTexture;
+
+	GLuint cubeMap;
+	bool hasReflectionMap;
+	bool shouldReflect;
+	bool shouldRefract;
 
 	//Drawing stuff
 	vec4* meshGLPoints;

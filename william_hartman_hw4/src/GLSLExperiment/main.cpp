@@ -37,6 +37,8 @@ Mesh* child4;
 Mesh* child5;
 Spotlight* light;
 
+bool shouldRefract = false;
+bool shouldReflect = false;
 bool shouldDrawShadows = true;
 bool areWallsTextured = true;
 float currentRotationAmount;
@@ -262,6 +264,29 @@ void keyboard(unsigned char key, int x, int y)
 		floorMesh->shouldDrawWithTexture(areWallsTextured);
 		wall1->shouldDrawWithTexture(areWallsTextured);
 		wall2->shouldDrawWithTexture(areWallsTextured);
+		break;
+	case 'c':
+	case 'C':
+		shouldReflect = !shouldReflect;
+		shouldRefract = false;
+		root->setShouldReflect(shouldReflect);
+		child1->setShouldReflect(shouldReflect);
+		child2->setShouldReflect(shouldReflect);
+		child3->setShouldReflect(shouldReflect);
+		child4->setShouldReflect(shouldReflect);
+		child5->setShouldReflect(shouldReflect);
+		break;
+	case 'd':
+	case 'D':
+		shouldRefract = !shouldRefract;
+		shouldReflect = false;
+		root->setShouldRefract(shouldRefract);
+		child1->setShouldRefract(shouldRefract);
+		child2->setShouldRefract(shouldRefract);
+		child3->setShouldRefract(shouldRefract);
+		child4->setShouldRefract(shouldRefract);
+		child5->setShouldRefract(shouldRefract);
+		break;
 	}
 }
 
@@ -339,27 +364,33 @@ int main( int argc, char **argv ) {
 	*/
 
 	root = loadMeshFromPLY("Resources/beethoven.ply");
+	root->setEnvironmentMap("Resources/nvposx.bmp", "Resources/nvposy.bmp", "Resources/nvposz.bmp", "Resources/nvnegx.bmp", "Resources/nvnegy.bmp", "Resources/nvnegz.bmp");
 	root->setColor(vec4(1.0f, 0.0f, 0.0f, 1.0f));
 	root->scaleBy(0.3f);
 	root->moveBy(0, 0.25f, -0.5f);
 
 	child1 = loadMeshFromPLY("Resources/apple.ply");
+	child1->setEnvironmentMap("Resources/nvposx.bmp", "Resources/nvposy.bmp", "Resources/nvposz.bmp", "Resources/nvnegx.bmp", "Resources/nvnegy.bmp", "Resources/nvnegz.bmp");
 	child1->setColor(vec4(0.0f, 0.0f, 1.0f, 1.0f));
 	child1->moveBy(-1.0f, -1.0f, 0.0f);
 
 	child2 = loadMeshFromPLY("Resources/cow.ply");
+	child2->setEnvironmentMap("Resources/nvposx.bmp", "Resources/nvposy.bmp", "Resources/nvposz.bmp", "Resources/nvnegx.bmp", "Resources/nvnegy.bmp", "Resources/nvnegz.bmp");
 	child2->setColor(vec4(0.0f, 1.0f, 1.0f, 1.0f));
 	child2->moveBy(1.0f, -1.0f, 0.0f);
 
 	child3 = loadMeshFromPLY("Resources/tennis_shoe.ply");
+	child3->setEnvironmentMap("Resources/nvposx.bmp", "Resources/nvposy.bmp", "Resources/nvposz.bmp", "Resources/nvnegx.bmp", "Resources/nvnegy.bmp", "Resources/nvnegz.bmp");
 	child3->setColor(vec4(0.0f, 1.0f, 0.0f, 1.0f));
 	child3->moveBy(0.0f, -1.0f, 0.0f);
 
 	child4 = loadMeshFromPLY("Resources/big_porsche.ply");
+	child4->setEnvironmentMap("Resources/nvposx.bmp", "Resources/nvposy.bmp", "Resources/nvposz.bmp", "Resources/nvnegx.bmp", "Resources/nvnegy.bmp", "Resources/nvnegz.bmp");
 	child4->setColor(vec4(1.0f, 0.5f, 0.5f, 1.0f));
 	child4->moveBy(-0.5f, -1.0f, 0.0f);
 
 	child5 = loadMeshFromPLY("Resources/big_atc.ply");
+	child5->setEnvironmentMap("Resources/nvposx.bmp", "Resources/nvposy.bmp", "Resources/nvposz.bmp", "Resources/nvnegx.bmp", "Resources/nvnegy.bmp", "Resources/nvnegz.bmp");
 	child5->setColor(vec4(1.0f, 1.0f, 1.0f, 1.0f));
 	child5->moveBy(0.5f, -1.0f, 0.0f);
 

@@ -115,6 +115,12 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="Resources\grass.bmp" />
+    <Image Include="Resources\nvnegx.bmp" />
+    <Image Include="Resources\nvnegy.bmp" />
+    <Image Include="Resources\nvnegz.bmp" />
+    <Image Include="Resources\nvposx.bmp" />
+    <Image Include="Resources\nvposy.bmp" />
+    <Image Include="Resources\nvposz.bmp" />
     <Image Include="Resources\stones.bmp" />
     <Image Include="Resources\test24.bmp" />
     <Image Include="Resources\usain_bolt.bmp" />

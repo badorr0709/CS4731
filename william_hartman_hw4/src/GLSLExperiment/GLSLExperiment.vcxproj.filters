@@ -111,5 +111,23 @@
     <Image Include="Resources\usain_bolt.bmp">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="Resources\nvnegx.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Resources\nvnegy.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Resources\nvnegz.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Resources\nvposx.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Resources\nvposy.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Resources\nvposz.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>
