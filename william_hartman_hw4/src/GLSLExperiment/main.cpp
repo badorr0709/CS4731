@@ -3,6 +3,7 @@
 
 #include "Angel.h"
 #include "Mesh.h"
+#include "Line.h"
 #include "Spotlight.h"
 #include "CTMStack.h"
 
@@ -14,7 +15,7 @@
 void setUpOpenGLBuffers();
 void display();
 void drawShadows(Mesh* m);
-void drawLine(Mesh* m1, Mesh* m2);
+void drawLineShadow(Line* line);
 void resize(int newWidth, int newHeight);
 void update();
 void keyboard(unsigned char key, int x, int y);
@@ -35,6 +36,11 @@ Mesh* child2;
 Mesh* child3;
 Mesh* child4;
 Mesh* child5;
+Line* line1;
+Line* line2;
+Line* line3;
+Line* line4;
+Line* line5;
 Spotlight* light;
 
 bool shouldRefract = false;
@@ -91,6 +97,10 @@ void setUpOpenGLBuffers() {
 	GLuint lightDir = glGetUniformLocationARB(program, "lightDir");
 	glUniform4f(lightDir, light->getDirection().x, light->getDirection().y, light->getDirection().z, 0);
 
+	//Enable MSAA
+	glEnable(GL_MULTISAMPLE);
+	glHint(GL_MULTISAMPLE_FILTER_HINT_NV, GL_NICEST);
+
 	//sets the default color to clear screen
     glClearColor(0.0, 0.0, 0.0, 1.0); // black background
 }
@@ -143,15 +153,19 @@ void display() {
 	ctmStack.peekMatrix();
 	root->drawMesh(program, light);
 	drawShadows(root);
-	drawLine(root, child1);
-	drawLine(root, child2);
+	line1->drawLine(program);
+	line2->drawLine(program);
+	drawLineShadow(line1);
+	drawLineShadow(line2);
 
 	ctmStack.pushMatrix(child1->getModelMatrix());
 	ctmStack.peekMatrix();
 	child1->drawMesh(program, light);
 	drawShadows(child1);
-	drawLine(child1, child4);
-	drawLine(child1, child5);
+	line4->drawLine(program);
+	line5->drawLine(program);
+	drawLineShadow(line4);
+	drawLineShadow(line5);
 
 	ctmStack.pushMatrix(child4->getModelMatrix());
 	ctmStack.peekMatrix();
@@ -170,7 +184,8 @@ void display() {
 	ctmStack.peekMatrix();
 	child2->drawMesh(program, light);
 	drawShadows(child2);
-	drawLine(child2, child3);
+	line3->drawLine(program);
+	drawLineShadow(line3);
 
 	ctmStack.pushMatrix(child3->getModelMatrix());
 	ctmStack.peekMatrix();
@@ -187,39 +202,20 @@ void display() {
 
 void drawShadows(Mesh* m) {
 	if (shouldDrawShadows) {
-		m->drawShadows(program, light, 0.5f, vec3( 0,    0, 0), vec3(0, 0, 0), ctmStack.peekMatrix()); //Floor
-		m->drawShadows(program, light, 1.0f, vec3( 0, -0.5, 0), vec3(90, 45, 0), ctmStack.peekMatrix()); //Wall
+		m->drawShadows(program, light, 0.5f, vec3(0,    0, 0), ctmStack.peekMatrix()); //Floor
+		m->drawShadows(program, light, 1.0f, vec3(90,  45, 0), ctmStack.peekMatrix()); //Wall 1
+		m->drawShadows(program, light, 1.0f, vec3(90, -45, 0), ctmStack.peekMatrix()); //Wall 2
 	}
 }
 
-//Mesh 1 should be the child, mesh 2 should be the parent
-void drawLine(Mesh* m1, Mesh* m2) {
-	//Build buffer
-	vec3 m1Center = m1->getCenterPosition();
-	vec3 m2Center = m2->getCenterPosition(m2->getModelMatrix());
-	vec4 buf[12];
-
-	//Build a three part line strip.
-	//	- First part, vertical down from parent
-	//	- Second part, horizontal over to child, at the average height between the parent and child
-	//	- Third part, vertical down to child
-	int i = 0;
-	buf[i] = m1Center;                                                          i++; buf[i] = vec4(1, 1, 1, 1); i++; buf[i] = vec4(0, 0, 0, 0); i++;
-	buf[i] = vec4(m1Center.x, (m1Center.y + m2Center.y) / 2.0f, m1Center.z, 1); i++; buf[i] = vec4(1, 1, 1, 1); i++; buf[i] = vec4(0, 0, 0, 0); i++;
-	buf[i] = vec4(m2Center.x, (m1Center.y + m2Center.y) / 2.0f, m2Center.z, 1); i++; buf[i] = vec4(1, 1, 1, 1); i++; buf[i] = vec4(0, 0, 0, 0); i++;
-	buf[i] = m2Center;                                                          i++; buf[i] = vec4(1, 1, 1, 1); i++; buf[i] = vec4(0, 0, 0, 0); i++;
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vec4) * 12, buf, GL_STATIC_DRAW);
-	
-	//Set color to white
-	GLuint vColor = glGetUniformLocationARB(program, "overrideColor");
-	glUniform4f(vColor, 1, 1, 1, 1);
-
-	//Draw the PLY model
-	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	glEnable(GL_DEPTH_TEST);
-	glDrawArrays(GL_LINE_STRIP, 0, 4);
-	glDisable(GL_DEPTH_TEST);
+void drawLineShadow(Line* line) {
+	if (shouldDrawShadows) {
+		line->drawLineShadow(program, light, 0.5f, vec3(0,    0, 0), ctmStack.peekMatrix()); //Floor
+		line->drawLineShadow(program, light, 1.0f, vec3(90,  45, 0), ctmStack.peekMatrix()); //Wall 1
+		line->drawLineShadow(program, light, 1.0f, vec3(90, -45, 0), ctmStack.peekMatrix()); //Wall 2
+	}
 }
+
 
 //Update the size of the viewport, report the new width and height, redraw the scene
 void resize(int newWidth, int newHeight) {
@@ -307,35 +303,7 @@ Mesh* makeWall() {
 	return m;
 }
 
-//entry point
-int main( int argc, char **argv ) {
-	//Set up light
-	light = new Spotlight(vec3(0.75f, 0.6f, 0.0f), vec3(1.0f, 0.75f, 1.0f), 360);
-
-	//init glut
-	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
-	glutInitWindowSize(512, 512);
-	width = 512;
-	height = 512;
-
-	//create window
-	glutCreateWindow("CS 4731 - Homework 3 - William Hartman");
-
-	//init glew
-	glewInit();
-
-	//Set up buffers
-	setUpOpenGLBuffers();
-
-	//assign handlers
-	glutDisplayFunc(display);
-	glutReshapeFunc(resize);
-	glutIdleFunc(update);
-	glutKeyboardFunc(keyboard);
-
-
-
+void addStuffToWorld() {
 	//Setting up the walls and floor
 	floorMesh = makeWall();
 	floorMesh->setTexture("Resources/grass.bmp");
@@ -356,13 +324,13 @@ int main( int argc, char **argv ) {
 	wall2->moveBy(ROOT_TWO_OVER_TWO, 0, -ROOT_TWO_OVER_TWO);
 
 	/* Setting up the sculpture, looks like this:
-			     beethoven
-		       ______|______
-	           |	       |
-	        apple		 cow
-	       ____|____	   |
-	       |	   |     tennis_shoe
-     big_porsche   big_atc
+	beethoven
+	______|______
+	|	       |
+	apple		 cow
+	____|____	   |
+	|	   |     tennis_shoe
+	big_porsche   big_atc
 	*/
 
 	root = loadMeshFromPLY("Resources/beethoven.ply");
@@ -396,6 +364,43 @@ int main( int argc, char **argv ) {
 	child5->setColor(vec4(1.0f, 1.0f, 1.0f, 1.0f));
 	child5->moveBy(0.5f, -1.0f, 0.0f);
 
+	//Setting up lines
+	line1 = new Line(root, child1);
+	line2 = new Line(root, child2);
+	line3 = new Line(child2, child3);
+	line4 = new Line(child1, child4);
+	line5 = new Line(child1, child5);
+}
+
+//entry point
+int main( int argc, char **argv ) {
+	//Set up light
+	light = new Spotlight(vec3(0.75f, 0.6f, 0.0f), vec3(1.0f, 0.75f, 1.0f), 360);
+
+	//init glut
+	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH | GLUT_MULTISAMPLE);
+	glutInitWindowSize(512, 512);
+	width = 512;
+	height = 512;
+
+	//create window
+	glutCreateWindow("CS 4731 - Homework 3 - William Hartman");
+
+	//init glew
+	glewInit();
+
+	//Set up buffers
+	setUpOpenGLBuffers();
+
+	//assign handlers
+	glutDisplayFunc(display);
+	glutReshapeFunc(resize);
+	glutIdleFunc(update);
+	glutKeyboardFunc(keyboard);
+
+	//Add stuff
+	addStuffToWorld();
 
 	//enter the drawing loop
     glutMainLoop();

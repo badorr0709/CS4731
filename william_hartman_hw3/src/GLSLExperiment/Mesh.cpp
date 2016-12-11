@@ -86,7 +86,7 @@ void Mesh::buildNormals() {
 		}
 
 		vec4 normalized = Angel::normalize(pointNormal);
-		normalized.w = 1;
+		normalized.w = 0;
 		verts[i]->normal = new vec4(normalized);
 	}
 }

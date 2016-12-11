@@ -87,6 +87,7 @@
     <ClCompile Include="CTMStack.cpp" />
     <ClCompile Include="example1.cpp" />
     <ClCompile Include="InitShader.cpp" />
+    <ClCompile Include="Line.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="Spotlight.cpp" />
@@ -97,6 +98,7 @@
     <ClInclude Include="bmpread.h" />
     <ClInclude Include="CheckError.h" />
     <ClInclude Include="CTMStack.h" />
+    <ClInclude Include="Line.h" />
     <ClInclude Include="mat.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="Spotlight.h" />

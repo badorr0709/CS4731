@@ -50,7 +50,7 @@ public:
 
 	//Methods for drawing
 	void drawMesh(int program, Spotlight* light);
-	void drawShadows(int program, Spotlight* light, float dist, vec3 correction, vec3 planeRotation, mat4 modelView);
+	void drawShadows(int program, Spotlight* light, float dist, vec3 planeRotation, mat4 modelView);
 
 	//Methods for transforming meshes
 	void moveTo(float x, float y, float z);

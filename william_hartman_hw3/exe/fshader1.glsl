@@ -30,7 +30,7 @@ void main()
 		float lightPosAngle = acos(dot(L, normalize(lightDir.xyz)));
 		float intensity = 0;
 		if(lightPosAngle < lightCutoff) {
-			intensity = pow(cos(lightPosAngle), lightFalloff) * 3;
+			intensity = pow(cos(lightPosAngle), lightFalloff);
 		}
 
 		//Calculate flat color terms
